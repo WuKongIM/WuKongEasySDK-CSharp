@@ -3,7 +3,8 @@
 The approved test boundary is the public C#/JS SDK connection, SEND/RECV, error,
 and disposal API against real WuKongIM processes. Public Product HTTP sets up
 fixture identities/membership and supplies a selected node's `/route`; read-only
-Manager HTTP proves cluster authority. No SDK internals or database reads are
+Manager HTTP proves cluster authority; public `/user/onlinestatus` verifies
+that every surviving ingress sees all three device routes before each send phase. No SDK internals or database reads are
 used to establish success.
 
 The matrix fixes NuGet `WuKongEasySDK 1.0.0` and npm `easyjssdk 2.0.5`, restored
@@ -18,7 +19,12 @@ voters, and three Channel replicas. Token authentication and delivery are enable
 
 Before messaging, every node must agree on actual Raft leaders for one second,
 report three voters and quorum, and cover every hash slot exactly once.
-Recovery requires the Channel leader to be alive and its migration write fence cleared. The group
+Recovery requires the Channel leader to be alive and its migration write fence cleared.
+After a Slot authority change, live UID routes may need a heartbeat/touch to
+reappear. Before each message phase, require every live ingress to report all
+three Desktop routes online for one second, with a 45-second bound; preserve
+missing-route observations and elapsed time. Do not retry an already-ACKed SEND
+that was attempted before its recipient became visible. The group
 must expose three replicas and ISR members through Manager. C# initially connects
 to node 1, JS to node 2, and an independent JS group recipient to node 3.
 
@@ -78,7 +84,8 @@ CI adds two Linux jobs to the existing six single-node transport reports. The
 `artifacts/interop-{released,candidate}-cluster.json` reports retain package
 integrity, server binary hash, actual harness revision, observed Slot/group
 replicas, explicit ingress replacements, offline and activation rejection categories, application connection time, ACK/RECV
-receipts, and owned-node cleanup status. Only sanitized JSON is uploaded.
+receipts, presence convergence observations, failed-exchange ACK/recipient details,
+and owned-node cleanup status. Only sanitized JSON is uploaded.
 
 This bounded same-host three-node WS test does not establish multi-host network
 partitions, C# browser WebAssembly, multi-node WSS, large-group capacity, offline

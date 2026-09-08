@@ -96,7 +96,8 @@ async def channel_ready(node, channel_id, alive, *, complete=False, channel_type
                 page = await asyncio.to_thread(get_json, node.manager, '/manager/channel-runtime-meta?' + query)
                 for row in page['items']:
                     if (row['channel_id'] == channel_id and row['channel_type'] == channel_type and
-                        row['status'] == 'active' and row['leader'] in alive and not row.get('write_fence_token') and
+                        row['status'] == 'active' and row['min_isr'] == 2 and
+                        row['leader'] in alive and not row.get('write_fence_token') and
                         sorted(row['replicas']) == [1, 2, 3] and
                         len(set(row['isr']) & set(alive)) >= 2 and
                         (not complete or sorted(row['isr']) == [1, 2, 3])):
@@ -157,17 +158,50 @@ async def cluster_scenarios(binary, directory, dll, env, report):
         correlation = uuid.uuid4().hex
         payload = {'type': 9001, 'text': '三节点 中文 👩🏽‍💻',
                    'nested': {'enabled': True, 'id': '9223372036854775807', 'items': [None, 7, '群聊']}}
+        pending = {'sender': sender.uid, 'recipients': [r.uid for r in recipients],
+                   'channelType': 2 if group_send else 1, 'clientMsgNo': correlation, 'received': []}
+        report['pendingExchange'] = pending
         ack = await sender.command('send', target=group if group_send else recipients[0].uid,
                                    channelType=2 if group_send else 1, payload=payload, clientMsgNo=correlation)
+        pending['ack'] = ack
         for receiver in recipients:
             message = await receiver.event('message', client_msg_no=correlation)
             verify_exchange(ack, message, sender.uid, payload, correlation)
+            pending['received'].append(receiver.uid)
             if group_send:
                 verify_group(message, group)
         report.setdefault('exchanges', []).append({'sender': sender.uid, 'recipients': [r.uid for r in recipients],
             'channelType': 2 if group_send else 1, 'messageId': ack['messageId'], 'messageSeq': ack['messageSeq']})
+        report.pop('pendingExchange', None)
 
     async def messaging(clients):
+        # Slot convergence does not recreate every live UID route immediately.
+        # Wait for public authority presence before sending, without replaying SEND.
+        started, stable_since = time.monotonic(), None
+        readiness = {'stage': report['stage'], 'initialMissing': None}
+        report.setdefault('presenceReadiness', []).append(readiness)
+        async with asyncio.timeout(45):
+            while True:
+                missing = {}
+                for node_id, node in nodes.items():
+                    if node.process.returncode is not None:
+                        continue
+                    rows = await asyncio.to_thread(node.request, '/user/onlinestatus', [c.uid for c in clients])
+                    online = {row['uid'] for row in (rows or []) if row['online'] == 1 and row['device_flag'] == 2}
+                    absent = sorted({c.uid for c in clients} - online)
+                    if absent:
+                        missing[str(node_id)] = absent
+                if readiness['initialMissing'] is None:
+                    readiness['initialMissing'] = missing
+                readiness['lastMissing'] = missing
+                if missing:
+                    stable_since = None
+                elif stable_since is None:
+                    stable_since = time.monotonic()
+                elif time.monotonic() - stable_since >= 1:
+                    readiness['seconds'] = round(time.monotonic() - started, 3)
+                    break
+                await asyncio.sleep(.5)
         # Exercise every pair before faults so recovery never needs new placement with a replica absent.
         for sender in clients:
             for receiver in clients:
@@ -254,6 +288,7 @@ async def cluster_scenarios(binary, directory, dll, env, report):
             entry = {'nodeId': node_id}
             try:
                 slots = await asyncio.to_thread(get_json, node.manager, f'/manager/slots?node_id={node_id}')
+                entry['online'] = await asyncio.to_thread(node.request, '/user/onlinestatus', list(tokens))
                 entry['slots'] = [{key: row.get(key) for key in ('slot_id', 'runtime', 'node_log')}
                                   for row in slots['items'][:10]]
                 channels = await asyncio.to_thread(get_json, node.manager, '/manager/channel-runtime-meta?limit=10')
