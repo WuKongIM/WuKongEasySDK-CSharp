@@ -330,6 +330,7 @@ async def cluster_scenarios(binary, directory, dll, env, report):
                                 and '_total{' in line][:128]
                 entry['deliveryMetrics'] = await asyncio.to_thread(metrics)
                 entry['sendErrors'] = []
+                entry['conflictSites'] = [line[:256] for line in (node.base / 'server.log').read_text(errors='replace').splitlines() if line.startswith('FIXTURE_CONFLICT ')][:32]
                 for line in (node.base / 'server.log').read_text(errors='replace').splitlines():
                     if 'gateway send failed' not in line:
                         continue
