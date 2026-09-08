@@ -22,6 +22,7 @@ function sequence(value) {
 im.on(WKIMEvent.Message, message => emit({
   kind: 'message', messageId: message.messageId, messageSeq: sequence(message.messageSeq),
   clientMsgNo: message.clientMsgNo, fromUid: message.fromUid, payload: message.payload,
+  channelId: message.channelId, channelType: message.channelType,
 }));
 (async () => {
   for await (const line of readline.createInterface({ input: process.stdin })) {
@@ -31,7 +32,7 @@ im.on(WKIMEvent.Message, message => emit({
       switch (command.op) {
         case 'connect': await im.connect(); break;
         case 'send': {
-          const ack = await im.send(command.target, WKIMChannelType.Person, command.payload,
+          const ack = await im.send(command.target, command.channelType ?? WKIMChannelType.Person, command.payload,
             { clientMsgNo: command.clientMsgNo });
           data = { messageId: ack.messageId, messageSeq: sequence(ack.messageSeq),
             clientMsgNo: ack.clientMsgNo, reasonCode: ack.reasonCode };

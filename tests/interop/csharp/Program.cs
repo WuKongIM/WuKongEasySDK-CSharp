@@ -20,7 +20,8 @@ im.Error += _ => Emit(new { kind = "error" });
 im.Message += message => Emit(new
 {
     kind = "message", messageId = message.MessageId, messageSeq = message.MessageSeq.ToString(),
-    clientMsgNo = message.ClientMsgNo, fromUid = message.FromUid, payload = message.Payload
+    clientMsgNo = message.ClientMsgNo, fromUid = message.FromUid, payload = message.Payload,
+    channelId = message.ChannelId, channelType = (int)message.ChannelType
 });
 while (await Console.In.ReadLineAsync() is { } line)
 {
@@ -37,7 +38,8 @@ while (await Console.In.ReadLineAsync() is { } line)
                 await im.ConnectAsync(deadline.Token);
                 break;
             case "send":
-                var ack = await im.SendAsync(command.GetProperty("target").GetString()!, ChannelType.Person,
+                var ack = await im.SendAsync(command.GetProperty("target").GetString()!,
+                    command.TryGetProperty("channelType", out var channelType) ? (ChannelType)channelType.GetInt32() : ChannelType.Person,
                     command.GetProperty("payload"),
                     new SendOptions { ClientMsgNo = command.GetProperty("clientMsgNo").GetString()! }, deadline.Token);
                 data = new { messageId = ack.MessageId, messageSeq = ack.MessageSeq.ToString(),
@@ -52,6 +54,8 @@ while (await Console.In.ReadLineAsync() is { } line)
     }
     catch (Exception error)
     {
-        Emit(new { kind = "result", id, ok = false, category = error.GetType().Name });
+        Emit(new { kind = "result", id, ok = false, category = error.GetType().Name,
+            code = error is WKIMRpcException rpc ? (int?)rpc.Code :
+                error is WKIMAuthenticationException auth ? (int?)auth.ReasonCode : null });
     }
 }

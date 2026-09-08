@@ -4,6 +4,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      include_cluster:
+        description: 'Also reproduce three-node server blockers (WuKongIM issue 927; may fail)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -14,20 +19,22 @@ jobs:
       fail-fast: false
       matrix:
         mode: [released, candidate]
-        transport: [ws, browser-wss]
+        transport: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.include_cluster && '["ws","browser-wss","cluster"]' || '["ws","browser-wss"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Read the reviewed server pin
         id: pins
+        env:
+          TRANSPORT: ${{ matrix.transport }}
         run: |
           python3 - <<'PY'
           import json, os, re
           pins = json.load(open('tests/interop/pins.json'))
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for name, key in [('server', 'serverCommit')]:
-                  pin = pins[key]
-                  assert re.fullmatch('[0-9a-f]{40}', pin)
-                  output.write(f'{name}={pin}\n')
+              key = 'clusterServerCommit' if os.environ['TRANSPORT'] == 'cluster' else 'serverCommit'
+              pin = pins[key]
+              assert re.fullmatch('[0-9a-f]{40}', pin)
+              output.write(f'server={pin}\n')
           PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -68,6 +75,8 @@ jobs:
           if [ "$TRANSPORT" = browser-wss ]; then
             python3 scripts/interop.py "${args[@]}" --transport native
             python3 scripts/interop.py "${args[@]}" --transport browser-wss
+          elif [ "$TRANSPORT" = cluster ]; then
+            python3 scripts/interop.py "${args[@]}" --transport native --topology three-node
           else
             python3 scripts/interop.py "${args[@]}"
           fi

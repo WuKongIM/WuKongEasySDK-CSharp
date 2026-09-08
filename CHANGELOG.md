@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add optional manual three-node C#/JS reproduction and application address-replacement guidance; record server issue #927 as blocking complete cluster acceptance. Regular SDK CI retains the verified single-node transport matrix.
+
 - Run all C#/JS interoperability transports against public npm `easyjssdk 2.0.5` from an empty fixture cache, recording the locked tarball URL and integrity.
 
 - Extend real interoperability CI to repaired native Node WebSocket and Chromium/WSS, with isolated certificate trust and negative CA/hostname controls for both C# and the browser.

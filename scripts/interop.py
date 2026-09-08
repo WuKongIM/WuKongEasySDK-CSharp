@@ -152,9 +152,9 @@ class Actor:
         self.process.stdin.write((json.dumps({"id": self.serial, "op": op, **fields}) + "\n").encode())
         await self.process.stdin.drain()
         result = await asyncio.wait_for(future, 20)
-        if result["ok"] == reject:
-            raise AssertionError(f"{self.name}: unexpected {op} result")
-        return result if reject else result.get("data")
+        if reject is not None and result["ok"] == reject:
+            raise AssertionError(f"{self.name}: unexpected {op} result ({result.get('category')}, code={result.get('code')})")
+        return result if reject is None or reject else result.get("data")
 
     async def close(self):
         if self.process.returncode is None:
@@ -169,24 +169,31 @@ class Actor:
 
 
 class Server:
-    def __init__(self, binary, base):
+    def __init__(self, binary, base, *, node_id=1, members=None, cluster_port=None):
         self.binary, self.base, self.process = binary, base, None
-        cluster, self.api, manager, self.websocket = [port() for _ in range(4)]
+        cluster, self.api, self.manager, self.websocket = [port() for _ in range(4)]
+        cluster = cluster_port or cluster
+        members = members or [{"id": node_id, "addr": f"127.0.0.1:{cluster}"}]
+        peers = ", ".join(f'{{id = {member["id"]}, addr = "{member["addr"]}"}}' for member in members)
+        replica_count = len(members)
         self.config = base / "wukongim.toml"
         self.config.write_text(f'''[node]
-id = 1
+id = {node_id}
 data_dir = {json.dumps(str(base / 'data'))}
 [cluster]
 id = "csharp-js-interop"
 listen_addr = "127.0.0.1:{cluster}"
-nodes = [{{id = 1, addr = "127.0.0.1:{cluster}"}}]
+nodes = [{peers}]
 initial_slot_count = 10
 hash_slot_count = 256
-slot_replica_n = 1
+slot_replica_n = {replica_count}
+channel_replica_n = {replica_count}
+[delivery]
+enable = true
 [api]
 listen_addr = "127.0.0.1:{self.api}"
 [manager]
-listen_addr = "127.0.0.1:{manager}"
+listen_addr = "127.0.0.1:{self.manager}"
 [gateway]
 token_auth_on = true
 listeners = [{{name = "ws", network = "websocket", address = "127.0.0.1:{self.websocket}", transport = "gnet", protocol = "wsmux"}}]
@@ -208,6 +215,8 @@ console = true
         with urllib.request.urlopen(request, timeout=2) as response:
             if response.status != 200:
                 raise RuntimeError("Fixture HTTP failure")
+            body = response.read()
+            return json.loads(body) if body else None
 
     async def start(self):
         env = {key: value for key, value in os.environ.items() if not key.startswith("WK_")}
@@ -375,19 +384,24 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate", action="store_true", help="Test checkout C# source instead of public NuGet")
     parser.add_argument('--transport', choices=('ws', 'native', 'browser-wss'), default='ws')
+    parser.add_argument('--topology', choices=('single-node', 'three-node'), default='single-node')
     parser.add_argument('--javascript-source', type=Path, help='Clean checkout at the reviewed JS source pin')
     args = parser.parse_args()
+    if args.topology == "three-node" and (args.transport != "native" or args.javascript_source):
+        parser.error("Three-node acceptance uses the public npm package and native Node transport")
     binary = str(Path(os.environ["WUKONGIM_BINARY"]).resolve())
+    server_commit = PINS["clusterServerCommit"] if args.topology == "three-node" else PINS["serverCommit"]
     metadata = subprocess.check_output(["go", "version", "-m", binary], text=True)
-    if f"vcs.revision={PINS['serverCommit']}" not in metadata or "vcs.modified=false" not in metadata:
+    if f"vcs.revision={server_commit}" not in metadata or "vcs.modified=false" not in metadata:
         raise RuntimeError("Build the pinned clean WuKongIM server commit before running this fixture")
     report = {"status": "failed", "pins": PINS, "clientMode": "candidate" if args.candidate else "released",
               "harnessCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "harnessDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)),
+              "serverSourceCommit": server_commit,
               "serverBinarySha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(), "cases": [],
-              "transport": args.transport}
+              "transport": args.transport, "topology": args.topology}
     (ROOT / "artifacts").mkdir(exist_ok=True)
-    suffix = '' if args.transport == 'ws' else f'-{args.transport}'
+    suffix = '-cluster' if args.topology == 'three-node' else ('' if args.transport == 'ws' else f'-{args.transport}')
     output = ROOT / f"artifacts/interop-{report['clientMode']}{suffix}.json"
     try:
         with tempfile.TemporaryDirectory(prefix="wukong-csharp-js-") as directory:
@@ -434,7 +448,14 @@ def main():
             if library["type"] != ("project" if args.candidate else "package"):
                 raise AssertionError("Unexpected C# dependency source")
             dll = project.parent / "bin/Release/net8.0/Interop.dll"
-            asyncio.run(asyncio.wait_for(scenarios(binary, base, dll, env, report, args.transport, trust), 180))
+            if args.topology == "three-node":
+                from interop_cluster import cluster_scenarios
+                run = cluster_scenarios(binary, base, dll, env, report)
+            else:
+                run = scenarios(binary, base, dll, env, report, args.transport, trust)
+            asyncio.run(asyncio.wait_for(run, 420 if args.topology == "three-node" else 180))
+            if args.topology == "three-node" and not (report["ownedNodesStopped"] and report["ownedClientsStopped"]):
+                raise AssertionError("Owned cluster process cleanup incomplete")
             report["status"] = "passed"
     except Exception as error:
         report["failure"] = type(error).__name__ + ": " + str(error) if isinstance(error, AssertionError) else type(error).__name__
