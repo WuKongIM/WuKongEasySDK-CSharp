@@ -143,3 +143,5 @@ NuGet 发布使用独立的 [发布流程](docs/releasing.md)：三平台验证�
 服务端版本，覆盖双向消息、错误 Token、断网恢复、服务端重启和主动断开。该 CI 使用
 Node/`ws`、Node 原生 WebSocket，以及真实 Chromium 的 WSS 互通，均从空缓存安装公共 npm `easyjssdk 2.0.5`。
 浏览器验收保留正常证书校验，并检查不受信任 CA 和主机名不匹配的拒绝行为。早期修复源码与 npm `2.0.4` 的记录单独保留。
+
+[三节点集群验收](docs/cluster-acceptance.md)验证跨节点单聊/群聊、节点故障、应用侧地址切换与节点重新加入。每个 SDK 实例仍只重连创建时的固定地址。

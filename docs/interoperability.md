@@ -112,7 +112,7 @@ proxies, and server processes. Setup has bounded timeouts; scenarios have a
 
 [CSharp and JS interoperability](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/workflows/interop.yml)
 runs on pull requests and `main` pushes, with optional manual dispatch. Four
-Linux jobs test released/candidate C# against public npm `2.0.5` with either `ws`
+single-node Linux jobs test released/candidate C# against public npm `2.0.5` with either `ws`
 or both native and browser/WSS transports. Reports are:
 
 - `artifacts/interop-{released,candidate}.json` for npm/WS.
@@ -133,6 +133,11 @@ settles that attempt and continues bounded retries. Its minimal TCP regression
 and CI are documented in the
 [JS repair](https://github.com/WuKongIM/WuKongEasySDK-JS/pull/10).
 
-This short fixture does not establish Firefox/WebKit, physical devices, Unity,
+Two additional [three-node acceptance](cluster-acceptance.md) jobs exercise public
+NuGet and candidate C# with the same npm package and native Node. Their topology,
+application address replacement, and reports are separate from these six transport
+reports.
+
+This single-node fixture does not establish Firefox/WebKit, physical devices, Unity,
 browser WebAssembly for C#, offline synchronization, custom server events,
 multi-node behavior, capacity, or long-duration stability.

@@ -198,6 +198,8 @@ NuGet release and candidate source against pinned JS/server versions, including
 network interruption and server restart. All lanes install public npm `easyjssdk
 2.0.5` with an empty fixture cache: Node/`ws`, native Node WebSocket, and real
 Chromium over normally validated WSS.
+The additional [three-node acceptance](docs/cluster-acceptance.md) checks cross-node
+person/group delivery, node loss, application address replacement, and rejoin.
 The separate
 [release workflow](docs/releasing.md) publishes only after three-platform package
 validation, then verifies the exact public package in a fresh consumer.

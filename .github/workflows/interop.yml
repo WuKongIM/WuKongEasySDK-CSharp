@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         mode: [released, candidate]
-        transport: [ws, browser-wss]
+        transport: [ws, browser-wss, cluster]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Read the reviewed server pin
@@ -68,6 +68,8 @@ jobs:
           if [ "$TRANSPORT" = browser-wss ]; then
             python3 scripts/interop.py "${args[@]}" --transport native
             python3 scripts/interop.py "${args[@]}" --transport browser-wss
+          elif [ "$TRANSPORT" = cluster ]; then
+            python3 scripts/interop.py "${args[@]}" --transport native --topology three-node
           else
             python3 scripts/interop.py "${args[@]}"
           fi

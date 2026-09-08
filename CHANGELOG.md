@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add three-node C#/JS acceptance for cross-node person/group delivery, node failure, application address replacement, and persisted rejoin, using public packages and candidate C# in CI.
+
 - Run all C#/JS interoperability transports against public npm `easyjssdk 2.0.5` from an empty fixture cache, recording the locked tarball URL and integrity.
 
 - Extend real interoperability CI to repaired native Node WebSocket and Chromium/WSS, with isolated certificate trust and negative CA/hostname controls for both C# and the browser.

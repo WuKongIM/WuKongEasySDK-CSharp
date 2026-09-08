@@ -14,3 +14,8 @@ All transports install the exact public npm `easyjssdk 2.0.5` package with an
 empty fixture cache. The browser jobs also test native Node recovery. Chromium runs with normal TLS validation and an ephemeral NSS trust store;
 C# uses a child-process CA bundle. Negative CA and hostname tests are required.
 Reports record the npm tarball URL and integrity alongside the installed version.
+
+Two additional `cluster` jobs exercise the approved public SDK boundaries against
+three owned server processes using the exact npm package and native Node. They
+cover cross-node person/group delivery, killed ingress nodes, explicit application
+address replacement, and rejoin. No paid infrastructure is provisioned.
