@@ -10,7 +10,9 @@ public sealed class LifecycleTests
     private static WKIMOptions ReconnectOptions => new()
     {
         InitialReconnectDelay = TimeSpan.FromMilliseconds(30), MaxReconnectDelay = TimeSpan.FromMilliseconds(100),
-        ConnectTimeout = TimeSpan.FromMilliseconds(300), MaxReconnectAttempts = 2
+        // Reconnect failures are driven by peer aborts, not tiny wall-clock deadlines.
+        // Keep the normal opening budget so cold hosted HTTP initialization can finish.
+        ConnectTimeout = TimeSpan.FromSeconds(10), MaxReconnectAttempts = 2
     };
 
     [Theory]
