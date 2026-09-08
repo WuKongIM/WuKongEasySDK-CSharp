@@ -14,18 +14,18 @@ history synchronization, unread counts, media, push, and business receipts.
 only the .NET base class library (`ClientWebSocket`, `System.Text.Json`).
 Unity, .NET Framework, and browser WebAssembly are not currently supported targets.
 
-The package ID is `WuKongEasySDK`. When version `1.0.0` is available on
-[nuget.org](https://www.nuget.org/packages/WuKongEasySDK/1.0.0), install it with:
+Install [WuKongEasySDK 1.0.0](https://www.nuget.org/packages/WuKongEasySDK/1.0.0)
+from nuget.org:
 
 ```bash
 dotnet add package WuKongEasySDK --version 1.0.0
 ```
 
-The package page is authoritative for registry availability. If the version is
-not listed yet, use a project reference:
+For a source build, use a project reference to the release commit:
 
 ```bash
 git clone https://github.com/WuKongIM/WuKongEasySDK-CSharp.git
+git -C WuKongEasySDK-CSharp checkout 02ea7d60cd94feef1996f41bca35ffc3b8e18ea6
 dotnet new console -n MyChat
 dotnet add MyChat/MyChat.csproj reference WuKongEasySDK-CSharp/src/WuKongEasySDK/WuKongEasySDK.csproj
 ```
