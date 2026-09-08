@@ -183,7 +183,10 @@ public sealed class LifecycleTests
         await using var server = await TestServer.StartAsync();
         await using var client = new WKIM(server.Url, Auth, new()
         {
-            PingInterval = TimeSpan.FromMilliseconds(60), PongTimeout = TimeSpan.FromMilliseconds(250), AutoReconnect = false
+            // This checks accepted reply forms: observing the next ping proves the
+            // previous reply completed. Allow hosted scheduling jitter; the separate
+            // missing-pong test owns the deliberately short timeout contract.
+            PingInterval = TimeSpan.FromMilliseconds(60), PongTimeout = TimeSpan.FromSeconds(2), AutoReconnect = false
         });
         var peer = await server.ConnectAsync(client);
         for (var i = 0; i < 3; i++)
