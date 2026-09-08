@@ -6,6 +6,7 @@
     <Description>Lightweight asynchronous WebSocket JSON-RPC client for WuKongIM.</Description>
     <PackageTags>WuKongIM;IM;WebSocket;messaging</PackageTags>
     <RepositoryUrl>https://github.com/WuKongIM/WuKongEasySDK-CSharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/WuKongIM/WuKongEasySDK-CSharp</PackageProjectUrl>
     <PackageLicenseExpression>ISC</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
