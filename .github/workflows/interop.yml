@@ -19,15 +19,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Read the reviewed server pin
         id: pins
+        env:
+          TRANSPORT: ${{ matrix.transport }}
         run: |
           python3 - <<'PY'
           import json, os, re
           pins = json.load(open('tests/interop/pins.json'))
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for name, key in [('server', 'serverCommit')]:
-                  pin = pins[key]
-                  assert re.fullmatch('[0-9a-f]{40}', pin)
-                  output.write(f'{name}={pin}\n')
+              key = 'clusterServerCommit' if os.environ['TRANSPORT'] == 'cluster' else 'serverCommit'
+              pin = pins[key]
+              assert re.fullmatch('[0-9a-f]{40}', pin)
+              output.write(f'server={pin}\n')
           PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

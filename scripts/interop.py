@@ -390,12 +390,14 @@ def main():
     if args.topology == "three-node" and (args.transport != "native" or args.javascript_source):
         parser.error("Three-node acceptance uses the public npm package and native Node transport")
     binary = str(Path(os.environ["WUKONGIM_BINARY"]).resolve())
+    server_commit = PINS["clusterServerCommit"] if args.topology == "three-node" else PINS["serverCommit"]
     metadata = subprocess.check_output(["go", "version", "-m", binary], text=True)
-    if f"vcs.revision={PINS['serverCommit']}" not in metadata or "vcs.modified=false" not in metadata:
+    if f"vcs.revision={server_commit}" not in metadata or "vcs.modified=false" not in metadata:
         raise RuntimeError("Build the pinned clean WuKongIM server commit before running this fixture")
     report = {"status": "failed", "pins": PINS, "clientMode": "candidate" if args.candidate else "released",
               "harnessCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "harnessDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)),
+              "serverSourceCommit": server_commit,
               "serverBinarySha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(), "cases": [],
               "transport": args.transport, "topology": args.topology}
     (ROOT / "artifacts").mkdir(exist_ok=True)
