@@ -14,8 +14,15 @@ history synchronization, unread counts, media, push, and business receipts.
 only the .NET base class library (`ClientWebSocket`, `System.Text.Json`).
 Unity, .NET Framework, and browser WebAssembly are not currently supported targets.
 
-The initial source version is `1.0.0`. **It has not been published to nuget.org.**
-Use a project reference today:
+The package ID is `WuKongEasySDK`. When version `1.0.0` is available on
+[nuget.org](https://www.nuget.org/packages/WuKongEasySDK/1.0.0), install it with:
+
+```bash
+dotnet add package WuKongEasySDK --version 1.0.0
+```
+
+The package page is authoritative for registry availability. If the version is
+not listed yet, use a project reference:
 
 ```bash
 git clone https://github.com/WuKongIM/WuKongEasySDK-CSharp.git
@@ -185,9 +192,9 @@ WUKONGIM_BINARY=/absolute/path/to/wukongim python3 scripts/smoke.py
 ```
 
 See [validation evidence](docs/validation.md) for exact source revisions and
-scope. CI builds and tests on Windows, Linux, and macOS; it does not publish to
-NuGet. Work on this initially empty repository uses its main checkout; subsequent
-feature work can use `.worktrees/`.
+scope. CI builds and tests on Windows, Linux, and macOS. The separate
+[release workflow](docs/releasing.md) publishes only after three-platform package
+validation, then verifies the exact public package in a fresh consumer.
 
 Protocol reference: JS `v2.0.4`, source
 `9c03c98c725982fac224cd1d3b52456eae983975`. This is a C# implementation with explicit

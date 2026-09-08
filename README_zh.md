@@ -11,7 +11,14 @@ UI、本地存储、会话未读数、离线同步、媒体、推送与业务回
 需要 .NET 8 或更新版本，支持 Windows、Linux、macOS。库目标为 `net8.0`，无第三方运行时依赖。
 当前未支持 Unity、.NET Framework 或浏览器 WebAssembly。
 
-初始源码版本为 `1.0.0`，**尚未发布到 nuget.org**。请通过源码引用安装并记录确切 commit：
+包名为 `WuKongEasySDK`。[nuget.org](https://www.nuget.org/packages/WuKongEasySDK/1.0.0)
+列出 `1.0.0` 后，可通过以下命令安装：
+
+```bash
+dotnet add package WuKongEasySDK --version 1.0.0
+```
+
+注册表是否已发布以包页面为准。若版本尚未列出，请通过源码引用安装并记录确切 commit：
 
 ```bash
 git clone https://github.com/WuKongIM/WuKongEasySDK-CSharp.git
@@ -127,3 +134,6 @@ WUKONGIM_BINARY=/absolute/path/to/wukongim python3 scripts/smoke.py
 真实进程测试仅启动并清理自己拥有的回环地址单节点集群，启用 Token 认证、使用 256 Hash Slots。
 精确版本与验证范围见 [验证记录](docs/validation.md)。完整 API 对照、参数表与行为边界见
 [英文 README](README.md)。协议参考 JS `v2.0.4` / `9c03c98c725982fac224cd1d3b52456eae983975`。
+
+NuGet 发布使用独立的 [发布流程](docs/releasing.md)：三平台验证通过后，使用 GitHub OIDC
+临时凭据发布，再从公共源校验包内容并在全新项目中安装验证。

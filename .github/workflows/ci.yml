@@ -19,4 +19,5 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet build -c Release
       - run: dotnet test -c Release --no-build
+      - run: python -m unittest discover -s scripts -p 'test_release.py'
       - run: dotnet pack src/WuKongEasySDK -c Release --no-build -o artifacts
