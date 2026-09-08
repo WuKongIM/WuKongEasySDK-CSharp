@@ -15,7 +15,9 @@ empty fixture cache. The browser jobs also test native Node recovery. Chromium r
 C# uses a child-process CA bundle. Negative CA and hostname tests are required.
 Reports record the npm tarball URL and integrity alongside the installed version.
 
-Two additional `cluster` jobs exercise the approved public SDK boundaries against
-three owned server processes using the exact npm package and native Node. They
-cover cross-node person/group delivery, killed ingress nodes, explicit application
-address replacement, and rejoin. No paid infrastructure is provisioned.
+The optional manual `include_cluster=true` dispatch adds two three-node
+reproduction jobs. They retain strict failure reporting and sanitized diagnostics,
+but are blocked by [server issue 927](https://github.com/WuKongIM/WuKongIM/issues/927).
+Regular push/PR CI runs the four single-node jobs (six transport reports). Both
+paths pin the released beta.9 server, without depending on unmerged server fixes.
+No paid infrastructure is provisioned.

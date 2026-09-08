@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- Add three-node C#/JS acceptance for cross-node person/group delivery, node failure, application address replacement, and persisted rejoin, using public packages and candidate C# in CI.
+- Add optional manual three-node C#/JS reproduction and application address-replacement guidance; record server issue #927 as blocking complete cluster acceptance. Regular SDK CI retains the verified single-node transport matrix.
 
 - Run all C#/JS interoperability transports against public npm `easyjssdk 2.0.5` from an empty fixture cache, recording the locked tarball URL and integrity.
 

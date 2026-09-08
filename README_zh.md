@@ -144,4 +144,4 @@ NuGet 发布使用独立的 [发布流程](docs/releasing.md)：三平台验证�
 Node/`ws`、Node 原生 WebSocket，以及真实 Chromium 的 WSS 互通，均从空缓存安装公共 npm `easyjssdk 2.0.5`。
 浏览器验收保留正常证书校验，并检查不受信任 CA 和主机名不匹配的拒绝行为。早期修复源码与 npm `2.0.4` 的记录单独保留。
 
-[三节点集群验收](docs/cluster-acceptance.md)验证跨节点单聊/群聊、节点故障、应用侧地址切换与节点重新加入。每个 SDK 实例仍只重连创建时的固定地址。
+[三节点手动复现](docs/cluster-acceptance.md)覆盖跨节点通信与应用侧地址切换，完整验收仍受[服务端 Issue #927](https://github.com/WuKongIM/WuKongIM/issues/927)阻塞。每个 SDK 实例只重连创建时的固定地址。

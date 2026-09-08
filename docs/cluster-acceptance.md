@@ -1,96 +1,90 @@
-# Three-node C# / JavaScript acceptance
+# Three-node C# / JavaScript reproduction
 
-**Draft, not fully accepted.** Linux run [34208420961](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/runs/34208420961) failed both cluster lanes. Diagnostic run [34211014787](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/runs/34211014787) passed candidate but failed released in the server recovery frontier check. Post-rejoin ACK-without-RECV is also unresolved. Local passes and individual green lanes do not establish complete acceptance.
+**Blocked: full cluster acceptance has not passed.** Server migration, recovery,
+and post-rejoin delivery findings are tracked in
+[WuKongIM issue 927](https://github.com/WuKongIM/WuKongIM/issues/927).
+This SDK task does not change the server. The fixture retains strict failure
+reporting; an individual passing lane is not a complete acceptance receipt.
 
-The approved test boundary is the public C#/JS SDK connection, SEND/RECV, error,
-and disposal API against real WuKongIM processes. Public Product HTTP sets up
-fixture identities/membership and supplies a selected node's `/route`; read-only
-Manager HTTP proves cluster authority; public `/user/onlinestatus` verifies
-that every surviving ingress sees all three device routes before each send phase. No SDK internals or database reads are
-used to establish success.
+## Packages, server, and boundaries
 
-The matrix fixes NuGet `WuKongEasySDK 1.0.0` and npm `easyjssdk 2.0.5`, restored
-into empty caches, and also checks the candidate C# project. It uses the same
-candidate server repair source `c3dc526de3bc3f91461f32618ebdee7997984058`, with
-Node 24.3.0 native WebSocket. This is a source receipt, not a new server release.
-The [single-node/WSS matrix](interoperability.md) retains its original beta.9 pin.
-The cluster candidate loads cold local replicas before migration probes and
-completes fenced leader metadata application with writes closed. Full quorum
-recovery remains mandatory after fence removal. Three processes share 256 hash slots, 10 logical Slots, three Slot
-voters, and three Channel replicas. Token authentication and delivery are enabled.
+The fixture uses public NuGet `WuKongEasySDK 1.0.0`, npm `easyjssdk 2.0.5`, and
+Node 24.3.0 native WebSocket. A second lane builds the candidate C# source.
+`tests/interop/pins.json` pins both single-node and cluster fixtures to released
+server `v3.0.0-beta.9`, source `734166e0ec30fc0f6f10fef6f6d1889d079ab636`.
+No unmerged server repair is a dependency of this SDK.
 
-Before messaging, every node must agree on actual Raft leaders for one second,
-report three voters and quorum, and cover every hash slot exactly once.
-Recovery requires the Channel leader to be alive and its migration write fence cleared.
-After a Slot authority change, live UID routes may need a heartbeat/touch to
-reappear. Before each message phase, require every live ingress to report all
-three Desktop routes online for one second, with a 45-second bound; preserve
-missing-route observations and elapsed time. Do not retry an already-ACKed SEND
-that was attempted before its recipient became visible. The group
-must expose three replicas and ISR members through Manager. These metadata
-checks do not establish that every physical replica has caught up before the next fault. C# initially connects
-to node 1, JS to node 2, and an independent JS group recipient to node 3.
+Three owned loopback processes use 256 hash slots, 10 logical Slots, three
+Slot/Channel replicas, MinISR=2, Token authentication and online delivery.
+Public Product HTTP creates fixture identities and membership and supplies the
+selected node's route. Read-only Manager HTTP observes actual authority;
+`/user/onlinestatus` observes recipient presence. Assertions use public SDK
+connection, SEND/RECV, error, and disposal APIs, not SDK internals or database reads.
 
-The five scenario groups require:
+The intended five scenario groups are:
 
-1. Bidirectional person messages for every client pair, plus C#/JS group fanout
-   to both other members. Match SENDACK/RECV message IDs beyond JS's safe integer
-   range, sequence, client correlation, sender, group identity, and nested JSON.
-2. Kill node 1. C# reports disconnect/retry and rejects an offline SEND. Dispose
-   that client, obtain node 3's route, and create a replacement with the same
-   credentials. Require person and group delivery while node 1 remains stopped.
-3. Restart node 1 with its existing data, require cluster/group convergence, then
-   reconnect the original identity there and verify persisted auth/membership.
-4. Repeat node loss/address replacement for JS on node 2, switching to node 1.
-5. Restart node 2, return its identity, and verify communication again.
+1. Every directed person-message pair and C#/JS group fanout. Check exact
+   ACK/RECV IDs beyond JS's safe integer range, sequence, correlation, sender,
+   channel identity, and Unicode/nested JSON values.
+2. Kill node 1; observe C# disconnection/reconnect and offline SEND rejection.
+   Dispose the old client, create a replacement on node 3, and require messaging
+   while node 1 stays stopped.
+3. Restart node 1 using its existing data; return C# to that ingress and require
+   persisted authentication, group membership, and messaging.
+4. Repeat the node-loss/address-replacement scenario for JS on node 2.
+5. Restart node 2 and verify messaging again.
 
-Address replacement belongs to the application. Each SDK instance has one fixed
-endpoint and retries that endpoint; neither SDK discovers a surviving node here.
-The fixture's trusted backend explicitly selects a surviving owned node and calls
-its `/route`. Retire the old client and its retries before creating a replacement.
-The pinned server may reject replacement login with SystemError `15` while its
-old owner route remains active: conflict handling still tries to contact the
-stopped owner. The default 90-second presence route TTL is explicitly retained.
-The application fixture records these rejections and retries only this observed
-activation error, disposing each failed client, for at most 110 seconds. Invalid
-credentials and other failures stop the test. This is bounded eventual recovery,
-not immediate failover or a general recommendation to retry every system error.
+## Application behavior and known limits
 
-An in-flight SEND interrupted by a failure may have an unknown outcome; this test
-checks sends after observed disconnection and does not claim exactly-once delivery
-or automatic replay. Confirmed business sends are not broadly retried to hide
-failures. All person channels are established before fault injection, so this
-receipt does not imply new three-replica placement while one node is absent.
+Each SDK instance retries its fixed endpoint. To switch addresses, the trusted
+application backend selects a live ingress and obtains its `/route`; the
+application disposes the previous SDK and constructs a replacement. Do not replay
+an interrupted SEND automatically: its durable outcome may be unknown.
+
+The reproduction waits for observed Slot quorum, alive Channel authority without
+a migration write fence, and all recipient Desktop routes visible from every
+surviving ingress. Presence must remain visible for one second within 45 seconds.
+Full ISR metadata and node readiness do not prove physical replica catch-up
+before another fault; the server Issue records this evidence gap.
+
+The fixture keeps the 90-second presence TTL. During replacement login it records
+and retries only the observed activation SystemError 15, disposing each failed
+client, with a 110-second bound. Other login errors stop the test. This is a
+reproduction control, not a recommendation to retry arbitrary system errors.
+Confirmed or ambiguous SENDs are never retried to obtain a passing result.
+
+Migration scanning is explicitly set to 100 ms, 10 pages/tick, four tasks/tick,
+and four executor tasks. This covers the tiny fixture; it does not establish
+recovery under default scan budgets or provide production tuning guidance.
 
 ## Run and inspect
 
-Build the exact clean cluster server commit from `tests/interop/pins.json` in
-an independent clone, using the build method in [interoperability](interoperability.md),
-then run these lanes sequentially because they share the consumer build output:
+Build the exact clean pinned server in an independent clone as described in
+[interoperability](interoperability.md), then run the lanes sequentially:
 
 ```sh
 WUKONGIM_BINARY=/absolute/path/to/wukongim python3 scripts/interop.py --transport native --topology three-node
 WUKONGIM_BINARY=/absolute/path/to/wukongim python3 scripts/interop.py --transport native --topology three-node --candidate
 ```
 
-`DOTNET` and `NODE` may select exact executables. Setup has bounded deadlines;
-cluster scenarios have a 420-second deadline and stop all owned nodes and clients.
-The fixture keeps the server health defaults and uses a 100 ms Channel migration
-scan, at most 10 pages and four tasks per tick, with four executor tasks. The
-pinned scanner starts each tick from the first local Slot; its default one-page
-budget can starve later Slots. This fixture's explicit ten-page budget covers
-all ten logical Slots and its four established channels. It is a configuration
-precondition of this receipt, not proof that the server default repairs every
-Slot or that this budget is appropriate at production scale. It does not change machine trust or buy cloud resources.
+`DOTNET` and `NODE` may select executables. Setup is bounded; the cluster phase
+has a 420-second deadline and stops all owned processes on success or failure.
+Reports at `artifacts/interop-{released,candidate}-cluster.json` contain package
+integrity, exact source/binary identities, ACK/RECV, connection errors, authority
+and presence observations, bounded failure diagnostics, and cleanup status.
+Plan terminal log samples lack exact message correlation and are not message
+proof. Reports exclude fixture tokens and raw logs.
 
-CI adds two Linux jobs to the existing six single-node transport reports. The
-`artifacts/interop-{released,candidate}-cluster.json` reports retain package
-integrity, server binary hash, actual harness revision, observed Slot/group
-replicas, explicit ingress replacements, offline and activation rejection categories, application connection time, ACK/RECV
-receipts, presence convergence observations, failed-exchange ACK/recipient details,
-and owned-node cleanup status. Only sanitized JSON is uploaded.
+Regular push/PR CI runs four single-node jobs producing six transport reports.
+Manual dispatch with `include_cluster=true` adds the two cluster reproduction
+jobs. These jobs fail normally when a server blocker occurs; they do not use
+`continue-on-error` or convert a failure into success.
 
-This bounded same-host three-node WS test does not establish multi-host network
-partitions, C# browser WebAssembly, multi-node WSS, large-group capacity, offline
-synchronization, or long-duration stability. Existing WSS certificate controls
-remain in the separate single-node matrix.
+Historical experiments used unmerged server source `c3dc526de3bc3f91461f32618ebdee7997984058`.
+[Run 34208420961](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/runs/34208420961)
+and the diagnostic runs linked in issue 927 are investigation evidence only;
+they must not be attributed to beta.9 or to a released server fix.
+
+This bounded WS fixture does not establish multi-host partitions, multi-node WSS,
+offline synchronization, large-group capacity, or long-duration stability.
+The verified single-node/WSS matrix remains documented separately.
