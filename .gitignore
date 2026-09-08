@@ -10,3 +10,4 @@ TestResults/
 __pycache__/
 node_modules/
 /.server/
+/.javascript/

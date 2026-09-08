@@ -141,4 +141,5 @@ NuGet 发布使用独立的 [发布流程](docs/releasing.md)：三平台验证�
 
 [C#/JS 真实互通测试](docs/interoperability.md) 分别验证公共 NuGet 正式包与当前源码，固定 JS 和
 服务端版本，覆盖双向消息、错误 Token、断网恢复、服务端重启和主动断开。该 CI 使用
-Node 24 + `ws 8.21.3`，浏览器及 Node 原生 WebSocket 不在这份验证范围内。
+Node/`ws`、修复后 JS 源码的 Node 原生 WebSocket，以及真实 Chromium 的 WSS 互通。
+浏览器验收保留正常证书校验，并检查不受信任 CA 和主机名不匹配的拒绝行为。修复源码与 npm `2.0.4` 分别记录。

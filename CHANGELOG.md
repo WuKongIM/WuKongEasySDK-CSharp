@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Extend real interoperability CI to repaired native Node WebSocket and Chromium/WSS, with isolated certificate trust and negative CA/hostname controls for both C# and the browser.
+
 - Add real C#/JS interoperability CI for the public NuGet release and candidate source, covering Unicode/custom payloads, exact ACK/RECV correlation, invalid tokens, network recovery, server restart, and explicit disconnect.
 
 ## [1.0.0]

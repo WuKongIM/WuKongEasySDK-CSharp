@@ -4,7 +4,8 @@
 
 The separate [interoperability suite](interoperability.md) records the public
 NuGet/candidate lanes, reviewed JS and server pins, fault scenarios, reproduction
-commands, CI artifacts, and the explicit Node/`ws` transport scope. These results
+commands, CI artifacts, repaired native Node transport, and Chromium/WSS certificate
+controls. Published JS package and repaired source receipts stay distinct. These results
 do not replace the historical release and source receipts below.
 
 ## NuGet 1.0.0 release

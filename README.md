@@ -195,7 +195,8 @@ See [validation evidence](docs/validation.md) for exact source revisions and
 scope. CI builds and tests on Windows, Linux, and macOS. The separate
 [C#/JS interoperability workflow](docs/interoperability.md) tests both the public
 NuGet release and candidate source against pinned JS/server versions, including
-network interruption and server restart. Its JS runtime is Node 24 with `ws`.
+network interruption and server restart. Separate lanes cover Node/`ws`, repaired
+JS source with native Node WebSocket, and real Chromium over normally validated WSS.
 The separate
 [release workflow](docs/releasing.md) publishes only after three-platform package
 validation, then verifies the exact public package in a fresh consumer.

@@ -9,3 +9,8 @@ pushes to `main`, with optional manual dispatch. Its released and candidate lane
 use a pinned real server on a hosted Linux runner; they create only temporary
 loopback resources and upload sanitized result JSON. See
 [`docs/interoperability.md`](../../docs/interoperability.md) for pins and scope.
+
+The browser jobs also test native Node recovery against the exact reviewed JS repair
+source. Chromium runs with normal TLS validation and an ephemeral NSS trust store;
+C# uses a child-process CA bundle. Negative CA and hostname tests are required.
+The original npm/WS jobs remain as a separate published-package baseline.
