@@ -1,0 +1,61 @@
+name: CSharp and JS interoperability
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [released, candidate]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Read the reviewed server pin
+        id: pins
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          pin = json.load(open('tests/interop/pins.json'))['serverCommit']
+          assert re.fullmatch('[0-9a-f]{40}', pin)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'server={pin}\n')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: WuKongIM/WuKongIM
+          ref: ${{ steps.pins.outputs.server }}
+          path: .server
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: .server/go.mod
+          cache-dependency-path: .server/go.sum
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Build the exact real server
+        working-directory: .server
+        run: GOWORK=off go build -o "$RUNNER_TEMP/wukongim-interop" ./cmd/wukongim
+      - name: Run real-process interoperability
+        env:
+          WUKONGIM_BINARY: ${{ runner.temp }}/wukongim-interop
+          MODE: ${{ matrix.mode }}
+        run: |
+          args=()
+          if [ "$MODE" = candidate ]; then args+=(--candidate); fi
+          python3 scripts/interop.py "${args[@]}"
+      - name: Preserve the bounded result (no raw server or client logs)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: interop-${{ matrix.mode }}
+          path: artifacts/interop-${{ matrix.mode }}.json
+          if-no-files-found: warn

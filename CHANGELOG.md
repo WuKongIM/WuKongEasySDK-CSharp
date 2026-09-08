@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add real C#/JS interoperability CI for the public NuGet release and candidate source, covering Unicode/custom payloads, exact ACK/RECV correlation, invalid tokens, network recovery, server restart, and explicit disconnect.
+
 ## [1.0.0]
 
 ### Added
