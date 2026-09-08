@@ -1,7 +1,9 @@
 # NuGet releases
 
 The package ID is `WuKongEasySDK`, owned and released from
-`WuKongIM/WuKongEasySDK-CSharp`. The current candidate is `1.0.0`.
+`WuKongIM/WuKongEasySDK-CSharp`. Version `1.0.0` is published from `02ea7d60cd94feef1996f41bca35ffc3b8e18ea6`.
+Its NuGet owner and policy creator are `wukongim`; the configured policy is
+`WuKongEasySDK-CSharp release` with the exact scope below.
 A prepared package, Git tag, or successful validation-only run does not mean
 the version is available on nuget.org. The public installation check is the
 publication gate. Never overwrite a published version with different bytes.
@@ -32,6 +34,10 @@ for policy ownership and activation behavior. A public 404 does not guarantee
 that an ID is unreserved; NuGet's first push is authoritative for availability.
 
 ## Prepare and validate
+
+Once a version is published, a new publication from changed source requires a
+new version. To recover an interrupted release, rerun its original workflow run
+at the exact release commit; do not republish the same version from newer `main`.
 
 1. Set the stable version in `src/WuKongEasySDK/WuKongEasySDK.csproj` and move
    applicable changelog entries into exactly one `## [x.y.z]` section.

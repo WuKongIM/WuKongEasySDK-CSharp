@@ -11,17 +11,18 @@ UI、本地存储、会话未读数、离线同步、媒体、推送与业务回
 需要 .NET 8 或更新版本，支持 Windows、Linux、macOS。库目标为 `net8.0`，无第三方运行时依赖。
 当前未支持 Unity、.NET Framework 或浏览器 WebAssembly。
 
-包名为 `WuKongEasySDK`。[nuget.org](https://www.nuget.org/packages/WuKongEasySDK/1.0.0)
-列出 `1.0.0` 后，可通过以下命令安装：
+[WuKongEasySDK 1.0.0](https://www.nuget.org/packages/WuKongEasySDK/1.0.0)
+已发布到 nuget.org，通过以下命令安装：
 
 ```bash
 dotnet add package WuKongEasySDK --version 1.0.0
 ```
 
-注册表是否已发布以包页面为准。若版本尚未列出，请通过源码引用安装并记录确切 commit：
+如需从源码构建，可引用正式包对应的固定 commit：
 
 ```bash
 git clone https://github.com/WuKongIM/WuKongEasySDK-CSharp.git
+git -C WuKongEasySDK-CSharp checkout 02ea7d60cd94feef1996f41bca35ffc3b8e18ea6
 dotnet new console -n MyChat
 dotnet add MyChat/MyChat.csproj reference WuKongEasySDK-CSharp/src/WuKongEasySDK/WuKongEasySDK.csproj
 ```
