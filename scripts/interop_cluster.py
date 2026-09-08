@@ -329,6 +329,26 @@ async def cluster_scenarios(binary, directory, dll, env, report):
                                 if line.startswith(('wukongim_delivery_', 'wukongim_gateway_sendacks_total'))
                                 and '_total{' in line][:128]
                 entry['deliveryMetrics'] = await asyncio.to_thread(metrics)
+                entry['planFailures'] = []
+                # Plan terminal logs have no message correlation; retain only bounded
+                # fixture-UID samples and do not present them as exact message proof.
+                for line in (node.base / 'server.log').read_text(errors='replace').splitlines():
+                    if 'online delivery plan incomplete' not in line:
+                        continue
+                    try:
+                        row = json.loads(line[line.index('{'):])
+                        if row.get('uid') not in ('', None, *tokens):
+                            continue
+                        item = {k: str(row.get(k, ''))[:512] for k in
+                                ('phase', 'result', 'mode', 'recipients', 'uid', 'ownerNodeID', 'error')}
+                        for k, value in item.items():
+                            for token in tokens.values():
+                                value = value.replace(token, '[redacted]')
+                            item[k] = value
+                        entry['planFailures'].append(item)
+                        entry['planFailures'] = entry['planFailures'][-8:]
+                    except (ValueError, KeyError):
+                        continue
                 entry['sendErrors'] = []
                 for line in (node.base / 'server.log').read_text(errors='replace').splitlines():
                     if 'gateway send failed' not in line:
