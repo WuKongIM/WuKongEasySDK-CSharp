@@ -1,5 +1,7 @@
 # Three-node C# / JavaScript acceptance
 
+**Draft, not fully accepted.** Linux run [34208420961](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/runs/34208420961) failed both cluster lanes. Diagnostic run [34211014787](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/runs/34211014787) passed candidate but failed released in the server recovery frontier check. Post-rejoin ACK-without-RECV is also unresolved. Local passes and individual green lanes do not establish complete acceptance.
+
 The approved test boundary is the public C#/JS SDK connection, SEND/RECV, error,
 and disposal API against real WuKongIM processes. Public Product HTTP sets up
 fixture identities/membership and supplies a selected node's `/route`; read-only
@@ -25,7 +27,8 @@ reappear. Before each message phase, require every live ingress to report all
 three Desktop routes online for one second, with a 45-second bound; preserve
 missing-route observations and elapsed time. Do not retry an already-ACKed SEND
 that was attempted before its recipient became visible. The group
-must expose three replicas and ISR members through Manager. C# initially connects
+must expose three replicas and ISR members through Manager. These metadata
+checks do not establish that every physical replica has caught up before the next fault. C# initially connects
 to node 1, JS to node 2, and an independent JS group recipient to node 3.
 
 The five scenario groups require:
