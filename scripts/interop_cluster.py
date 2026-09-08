@@ -310,6 +310,45 @@ async def cluster_scenarios(binary, directory, dll, env, report):
             except Exception as error:
                 entry['readFailure'] = type(error).__name__
             diagnostics.append(entry)
+        pending = report.get('pendingExchange', {})
+        key = next((n['messageTrace']['summary'].get('channel_key') for n in diagnostics
+                    if n.get('messageTrace', {}).get('summary', {}).get('channel_key')), None)
+        for entry in diagnostics:
+            node = nodes[entry['nodeId']]
+            try:
+                if key and pending.get('ack'):
+                    query = urllib.parse.urlencode({'node_id': entry['nodeId'], 'channel_key': key,
+                        'message_seq': pending['ack']['messageSeq'], 'limit': 128})
+                    trace = await asyncio.to_thread(get_json, node.manager, '/manager/diagnostics/message?' + query)
+                    entry['deliveryTrace'] = {'summary': trace.get('summary'),
+                        'events': [{k: e.get(k) for k in ('stage', 'at', 'duration_ms', 'node_id', 'peer_node_id', 'message_seq', 'result', 'error_code', 'request_count', 'record_count', 'decision')}
+                                   for e in trace.get('events', [])[:128]]}
+                def metrics():
+                    with urllib.request.urlopen(f'http://127.0.0.1:{node.api}/metrics', timeout=2) as response:
+                        return [line for line in response.read(4 * 1024 * 1024).decode().splitlines()
+                                if line.startswith(('wukongim_delivery_', 'wukongim_gateway_sendacks_total'))
+                                and '_total{' in line][:128]
+                entry['deliveryMetrics'] = await asyncio.to_thread(metrics)
+                entry['sendErrors'] = []
+                for line in (node.base / 'server.log').read_text(errors='replace').splitlines():
+                    if 'gateway send failed' not in line:
+                        continue
+                    try:
+                        row = json.loads(line[line.index('{'):])
+                        if row.get('clientMsgNo') != pending.get('clientMsgNo'):
+                            continue
+                        item = {k: str(row.get(k, ''))[:512] for k in ('errorClass', 'failedStage', 'error')}
+                        for k, value in item.items():
+                            for token in tokens.values():
+                                value = value.replace(token, '[redacted]')
+                            item[k] = value
+                        entry['sendErrors'].append(item)
+                        if len(entry['sendErrors']) == 4:
+                            break
+                    except (ValueError, KeyError):
+                        continue
+            except Exception as error:
+                entry['deliveryReadFailure'] = type(error).__name__
         report['failureAuthority'] = diagnostics
         raise
     finally:
