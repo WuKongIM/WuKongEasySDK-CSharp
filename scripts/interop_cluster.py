@@ -218,6 +218,7 @@ async def cluster_scenarios(binary, directory, dll, env, report):
             node = Server(binary, base, node_id=i, members=members, cluster_port=ports[i - 1])
             # Accelerate only the migration scan; retain the server's health TTL.
             text = node.config.read_text() + '\n[observability]\nmetrics_enable = true\n' + '\n[presence]\nroute_ttl = "90s"\n[channel_migration]\nenable = true\nscan_interval = "100ms"\nmax_pages_per_tick = 10\nmax_tasks_per_tick = 4\ntask_limit = 4\n'
+            text += '\n[diagnostics]\nenable = true\nsample_rate = 1.0\ndeep_sample_rate = 1.0\n'
             node.config.write_text(text)
             nodes[i] = node
         started = await asyncio.gather(*(node.start() for node in nodes.values()), return_exceptions=True)
@@ -288,6 +289,14 @@ async def cluster_scenarios(binary, directory, dll, env, report):
             entry = {'nodeId': node_id}
             try:
                 slots = await asyncio.to_thread(get_json, node.manager, f'/manager/slots?node_id={node_id}')
+                pending = report.get('pendingExchange')
+                if pending:
+                    query = urllib.parse.urlencode({'node_id': node_id, 'client_msg_no': pending['clientMsgNo'], 'limit': 128})
+                    trace = await asyncio.to_thread(get_json, node.manager, '/manager/diagnostics/message?' + query)
+                    entry['messageTrace'] = {
+                        'summary': trace.get('summary'),
+                        'events': [{k: event.get(k) for k in ('stage', 'at', 'duration_ms', 'node_id', 'peer_node_id', 'message_seq', 'range_start', 'range_end', 'result', 'error_code', 'request_count', 'record_count', 'decision')}
+                                   for event in trace.get('events', [])[:128]]}
                 entry['online'] = await asyncio.to_thread(node.request, '/user/onlinestatus', list(tokens))
                 entry['slots'] = [{key: row.get(key) for key in ('slot_id', 'runtime', 'node_log')}
                                   for row in slots['items'][:10]]
