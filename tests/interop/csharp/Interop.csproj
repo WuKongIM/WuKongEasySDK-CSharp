@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(InteropCandidate)' != 'true'">
+    <PackageReference Include="WuKongEasySDK" Version="[1.0.0]" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(InteropCandidate)' == 'true'">
+    <ProjectReference Include="../../../src/WuKongEasySDK/WuKongEasySDK.csproj" />
+  </ItemGroup>
+</Project>

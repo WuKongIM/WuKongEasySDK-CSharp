@@ -1,5 +1,12 @@
 # Validation records
 
+## C# / JavaScript interoperability
+
+The separate [interoperability suite](interoperability.md) records the public
+NuGet/candidate lanes, reviewed JS and server pins, fault scenarios, reproduction
+commands, CI artifacts, and the explicit Node/`ws` transport scope. These results
+do not replace the historical release and source receipts below.
+
 ## NuGet 1.0.0 release
 
 Date: 2026-09-08. [Public package](https://www.nuget.org/packages/WuKongEasySDK/1.0.0),

@@ -138,3 +138,7 @@ WUKONGIM_BINARY=/absolute/path/to/wukongim python3 scripts/smoke.py
 
 NuGet 发布使用独立的 [发布流程](docs/releasing.md)：三平台验证通过后，使用 GitHub OIDC
 临时凭据发布，再从公共源校验包内容并在全新项目中安装验证。
+
+[C#/JS 真实互通测试](docs/interoperability.md) 分别验证公共 NuGet 正式包与当前源码，固定 JS 和
+服务端版本，覆盖双向消息、错误 Token、断网恢复、服务端重启和主动断开。该 CI 使用
+Node 24 + `ws 8.21.3`，浏览器及 Node 原生 WebSocket 不在这份验证范围内。

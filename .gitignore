@@ -8,3 +8,5 @@ TestResults/
 .DS_Store
 .worktrees/
 __pycache__/
+node_modules/
+/.server/
