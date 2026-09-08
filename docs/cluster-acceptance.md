@@ -8,17 +8,21 @@ used to establish success.
 
 The matrix fixes NuGet `WuKongEasySDK 1.0.0` and npm `easyjssdk 2.0.5`, restored
 into empty caches, and also checks the candidate C# project. It uses the same
-reviewed server `v3.0.0-beta.9` / `734166e0ec30fc0f6f10fef6f6d1889d079ab636`
-as the [single-node/WSS matrix](interoperability.md), with Node 24.3.0 native
-WebSocket. Three processes share 256 hash slots, 10 logical Slots, three Slot
+candidate server repair source `c3dc526de3bc3f91461f32618ebdee7997984058`, with
+Node 24.3.0 native WebSocket. This is a source receipt, not a new server release.
+The [single-node/WSS matrix](interoperability.md) retains its original beta.9 pin.
+The cluster candidate loads cold local replicas before migration probes and
+completes fenced leader metadata application with writes closed. Full quorum
+recovery remains mandatory after fence removal. Three processes share 256 hash slots, 10 logical Slots, three Slot
 voters, and three Channel replicas. Token authentication and delivery are enabled.
 
 Before messaging, every node must agree on actual Raft leaders for one second,
-report three voters and quorum, and cover every hash slot exactly once. The group
+report three voters and quorum, and cover every hash slot exactly once.
+Recovery requires the Channel leader to be alive and its migration write fence cleared. The group
 must expose three replicas and ISR members through Manager. C# initially connects
 to node 1, JS to node 2, and an independent JS group recipient to node 3.
 
-The five scenario groups prove:
+The five scenario groups require:
 
 1. Bidirectional person messages for every client pair, plus C#/JS group fanout
    to both other members. Match SENDACK/RECV message IDs beyond JS's safe integer
@@ -51,7 +55,8 @@ receipt does not imply new three-replica placement while one node is absent.
 
 ## Run and inspect
 
-Build the exact clean server as described in [interoperability](interoperability.md),
+Build the exact clean cluster server commit from `tests/interop/pins.json` in
+an independent clone, using the build method in [interoperability](interoperability.md),
 then run these lanes sequentially because they share the consumer build output:
 
 ```sh

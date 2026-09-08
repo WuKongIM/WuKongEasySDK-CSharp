@@ -96,7 +96,7 @@ async def channel_ready(node, channel_id, alive, *, complete=False, channel_type
                 page = await asyncio.to_thread(get_json, node.manager, '/manager/channel-runtime-meta?' + query)
                 for row in page['items']:
                     if (row['channel_id'] == channel_id and row['channel_type'] == channel_type and
-                        row['status'] == 'active' and row['leader'] in alive and
+                        row['status'] == 'active' and row['leader'] in alive and not row.get('write_fence_token') and
                         sorted(row['replicas']) == [1, 2, 3] and
                         len(set(row['isr']) & set(alive)) >= 2 and
                         (not complete or sorted(row['isr']) == [1, 2, 3])):
