@@ -8,6 +8,20 @@ commands, CI artifacts, repaired native Node transport, and Chromium/WSS certifi
 controls. Published JS package and repaired source receipts stay distinct. These results
 do not replace the historical release and source receipts below.
 
+## Public JavaScript 2.0.5
+
+Date: 2026-09-08. [npm package](https://www.npmjs.com/package/easyjssdk/v/2.0.5),
+[publication workflow](https://github.com/WuKongIM/WuKongEasySDK-JS/actions/runs/34198493737).
+The package source is `b6d0bbe822b9c5b6f95a10d55b593d30184414f6`. Its public
+archive matches all six entries of the locally tested artifact. The locked
+SHA-512 integrity is
+`sha512-dp7qaPIjKpGBTgycxVYxH/tQdMvZKchPOHpLmUnmxluugCFkanrWOn2VZS9Q9Pv7ZNnqsszeL44qhbx70NOPgQ==`.
+The current interoperability matrix uses this public package for every transport;
+its exact CI run and six JSON reports establish the corresponding communication
+results. Historical source acceptance at
+[run 34195913516](https://github.com/WuKongIM/WuKongEasySDK-CSharp/actions/runs/34195913516)
+used JS `5e5dfb727fb0ea08294939962ae799e998b7ca5c` and remains a separate receipt.
+
 ## NuGet 1.0.0 release
 
 Date: 2026-09-08. [Public package](https://www.nuget.org/packages/WuKongEasySDK/1.0.0),

@@ -392,17 +392,20 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix="wukong-csharp-js-") as directory:
             base = Path(directory)
-            env = dict(os.environ, NUGET_PACKAGES=str(base / "packages"))
+            env = dict(os.environ, NUGET_PACKAGES=str(base / "packages"),
+                       npm_config_cache=str(base / "npm-cache"),
+                       npm_config_registry="https://registry.npmjs.org")
             dotnet = os.environ.get("DOTNET", "dotnet")
             subprocess.run(["npm", "ci", "--prefix", str(ROOT / "tests/interop/js"), "--ignore-scripts",
-                            "--no-audit", "--no-fund"], check=True, timeout=120)
+                            "--no-audit", "--no-fund"], env=env, check=True, timeout=120)
             installed_js = json.loads((ROOT / "tests/interop/js/node_modules/easyjssdk/package.json").read_text())
             if installed_js["version"] != PINS["javascript"]:
                 raise AssertionError("Unexpected installed JS version")
             report["jsTransport"] = "ws/" + json.loads((ROOT / "tests/interop/js/node_modules/ws/package.json").read_text())["version"]
-            report['javascriptResolved'] = {'kind': 'npm', 'version': installed_js['version']}
-            if args.transport != 'ws' and not args.javascript_source:
-                raise AssertionError('Native/browser verification requires the pinned JS handshake repair source')
+            locked_js = json.loads((ROOT / 'tests/interop/js/package-lock.json').read_text())['packages']['node_modules/easyjssdk']
+            report['javascriptResolved'] = {'kind': 'npm', 'version': installed_js['version'],
+                                            'integrity': locked_js['integrity'], 'resolved': locked_js['resolved']}
+            env['INTEROP_JS_ENTRY'] = str(ROOT / 'tests/interop/js/node_modules/easyjssdk/dist/cjs/index.js')
             if args.javascript_source:
                 source = args.javascript_source.resolve()
                 revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip()

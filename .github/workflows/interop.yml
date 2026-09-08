@@ -24,7 +24,7 @@ jobs:
           import json, os, re
           pins = json.load(open('tests/interop/pins.json'))
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for name, key in [('server', 'serverCommit'), ('javascript', 'javascriptSource')]:
+              for name, key in [('server', 'serverCommit')]:
                   pin = pins[key]
                   assert re.fullmatch('[0-9a-f]{40}', pin)
                   output.write(f'{name}={pin}\n')
@@ -34,13 +34,6 @@ jobs:
           repository: WuKongIM/WuKongIM
           ref: ${{ steps.pins.outputs.server }}
           path: .server
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        if: matrix.transport == 'browser-wss'
-        with:
-          repository: WuKongIM/WuKongEasySDK-JS
-          ref: ${{ steps.pins.outputs.javascript }}
-          path: .javascript
-          persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: .server/go.mod
@@ -73,8 +66,8 @@ jobs:
           args=()
           if [ "$MODE" = candidate ]; then args+=(--candidate); fi
           if [ "$TRANSPORT" = browser-wss ]; then
-            python3 scripts/interop.py "${args[@]}" --transport native --javascript-source .javascript
-            python3 scripts/interop.py "${args[@]}" --transport browser-wss --javascript-source .javascript
+            python3 scripts/interop.py "${args[@]}" --transport native
+            python3 scripts/interop.py "${args[@]}" --transport browser-wss
           else
             python3 scripts/interop.py "${args[@]}"
           fi

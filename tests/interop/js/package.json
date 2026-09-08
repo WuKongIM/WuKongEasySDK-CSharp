@@ -2,7 +2,7 @@
   "name": "wukong-csharp-js-interop",
   "private": true,
   "dependencies": {
-    "easyjssdk": "2.0.4",
+    "easyjssdk": "2.0.5",
     "esbuild": "0.25.9",
     "playwright": "1.62.1",
     "ws": "8.21.3"

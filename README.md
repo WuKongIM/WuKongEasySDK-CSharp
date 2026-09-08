@@ -195,8 +195,9 @@ See [validation evidence](docs/validation.md) for exact source revisions and
 scope. CI builds and tests on Windows, Linux, and macOS. The separate
 [C#/JS interoperability workflow](docs/interoperability.md) tests both the public
 NuGet release and candidate source against pinned JS/server versions, including
-network interruption and server restart. Separate lanes cover Node/`ws`, repaired
-JS source with native Node WebSocket, and real Chromium over normally validated WSS.
+network interruption and server restart. All lanes install public npm `easyjssdk
+2.0.5` with an empty fixture cache: Node/`ws`, native Node WebSocket, and real
+Chromium over normally validated WSS.
 The separate
 [release workflow](docs/releasing.md) publishes only after three-platform package
 validation, then verifies the exact public package in a fresh consumer.
