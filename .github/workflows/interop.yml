@@ -9,11 +9,12 @@ permissions:
 jobs:
   interop:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         mode: [released, candidate]
+        transport: [ws, browser-wss]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Read the reviewed server pin
@@ -21,16 +22,25 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, os, re
-          pin = json.load(open('tests/interop/pins.json'))['serverCommit']
-          assert re.fullmatch('[0-9a-f]{40}', pin)
+          pins = json.load(open('tests/interop/pins.json'))
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'server={pin}\n')
+              for name, key in [('server', 'serverCommit'), ('javascript', 'javascriptSource')]:
+                  pin = pins[key]
+                  assert re.fullmatch('[0-9a-f]{40}', pin)
+                  output.write(f'{name}={pin}\n')
           PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: WuKongIM/WuKongIM
           ref: ${{ steps.pins.outputs.server }}
           path: .server
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: matrix.transport == 'browser-wss'
+        with:
+          repository: WuKongIM/WuKongEasySDK-JS
+          ref: ${{ steps.pins.outputs.javascript }}
+          path: .javascript
+          persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: .server/go.mod
@@ -40,7 +50,16 @@ jobs:
           dotnet-version: '8.0.x'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '24'
+          node-version: '24.3.0'
+      - name: Install Chromium and isolated trust-store tooling
+        if: matrix.transport == 'browser-wss'
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/playwright
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3-tools
+          npm ci --prefix tests/interop/js --ignore-scripts --no-audit --no-fund
+          tests/interop/js/node_modules/.bin/playwright install --with-deps chromium
       - name: Build the exact real server
         working-directory: .server
         run: GOWORK=off go build -o "$RUNNER_TEMP/wukongim-interop" ./cmd/wukongim
@@ -48,14 +67,21 @@ jobs:
         env:
           WUKONGIM_BINARY: ${{ runner.temp }}/wukongim-interop
           MODE: ${{ matrix.mode }}
+          TRANSPORT: ${{ matrix.transport }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/playwright
         run: |
           args=()
           if [ "$MODE" = candidate ]; then args+=(--candidate); fi
-          python3 scripts/interop.py "${args[@]}"
+          if [ "$TRANSPORT" = browser-wss ]; then
+            python3 scripts/interop.py "${args[@]}" --transport native --javascript-source .javascript
+            python3 scripts/interop.py "${args[@]}" --transport browser-wss --javascript-source .javascript
+          else
+            python3 scripts/interop.py "${args[@]}"
+          fi
       - name: Preserve the bounded result (no raw server or client logs)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: interop-${{ matrix.mode }}
-          path: artifacts/interop-${{ matrix.mode }}.json
+          name: interop-${{ matrix.mode }}-${{ matrix.transport }}
+          path: artifacts/interop-${{ matrix.mode }}*.json
           if-no-files-found: warn

@@ -1,6 +1,7 @@
 {
   "nuget": "1.0.0",
   "javascript": "2.0.4",
+  "javascriptSource": "5e5dfb727fb0ea08294939962ae799e998b7ca5c",
   "serverTag": "v3.0.0-beta.9",
   "serverCommit": "734166e0ec30fc0f6f10fef6f6d1889d079ab636"
 }

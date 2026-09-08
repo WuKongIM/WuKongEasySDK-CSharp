@@ -13,6 +13,7 @@ import urllib.request
 import uuid
 
 from smoke import port
+from interop_tls import Trust
 
 ROOT = Path(__file__).resolve().parents[1]
 PINS = json.loads((ROOT / "tests/interop/pins.json").read_text())
@@ -38,13 +39,16 @@ def verify_exchange(ack, message, sender, payload, client_msg_no):
 
 class Proxy:
     """A bounded byte-transparent TCP relay; faults close sockets, never fake protocol data."""
-    def __init__(self, target):
+    def __init__(self, target, tls=None):
         self.target, self.enabled, self.attempts = target, True, 0
+        self.tls = tls
+        self.client_bytes = 0
         self.writers, self.tasks = set(), set()
 
     async def start(self):
-        self.server = await asyncio.start_server(self.handle, "127.0.0.1", 0)
-        self.url = f"ws://127.0.0.1:{self.server.sockets[0].getsockname()[1]}"
+        self.server = await asyncio.start_server(self.handle, "127.0.0.1", 0, ssl=self.tls)
+        scheme = 'wss' if self.tls else 'ws'
+        self.url = f"{scheme}://127.0.0.1:{self.server.sockets[0].getsockname()[1]}"
         return self
 
     async def handle(self, reader, writer):
@@ -61,6 +65,8 @@ class Proxy:
 
             async def copy(source, destination):
                 while data := await source.read(65536):
+                    if source is reader:
+                        self.client_bytes += len(data)
                     destination.write(data)
                     await destination.drain()
 
@@ -230,19 +236,25 @@ console = true
                 await self.process.wait()
 
 
-async def scenarios(binary, directory, dll, env, report):
+async def scenarios(binary, directory, dll, env, report, transport='ws', trust=None):
     server, actors, proxies = Server(binary, directory), [], []
     dotnet, node = os.environ.get("DOTNET", "dotnet"), os.environ.get("NODE", "node")
 
-    async def actor(name, language, uid, token):
-        proxy = await Proxy(server.websocket).start()
+    async def actor(name, language, uid, token, certificate='server'):
+        proxy = await Proxy(server.websocket, trust.contexts[certificate] if trust else None).start()
         proxies.append(proxy)
-        command = [dotnet, str(dll)] if language == "csharp" else [node, str(ROOT / "tests/interop/js/actor.cjs")]
+        script = 'browser.cjs' if transport == 'browser-wss' else 'actor.cjs'
+        command = [dotnet, str(dll)] if language == "csharp" else [node, str(ROOT / f"tests/interop/js/{script}")]
         process = await asyncio.create_subprocess_exec(*command,
-            env=dict(env, INTEROP_URL=proxy.url, INTEROP_UID=uid, INTEROP_TOKEN=token),
+            env=dict(env, INTEROP_URL=proxy.url, INTEROP_UID=uid, INTEROP_TOKEN=token, INTEROP_TRANSPORT=transport),
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
         client = Actor(name, uid, process)
         actors.append(client)
+        if language == 'js' and transport == 'browser-wss':
+            runtime = await client.event('runtime')
+            if not runtime['secureContext'] or not runtime['certificateValidation']:
+                raise AssertionError('Browser page did not pass normal HTTPS validation')
+            report['browser'] = runtime
         return client, proxy
 
     async def exchange(sender, receiver, payload):
@@ -262,6 +274,21 @@ async def scenarios(binary, directory, dll, env, report):
         for uid, token in tokens.items():
             await asyncio.to_thread(server.request, "/user/token", {
                 "uid": uid, "token": token, "device_flag": 2, "device_level": 1})
+        if trust:
+            report['stage'] = 'TLS certificate rejection'
+            for certificate in ('untrusted', 'wrong-host'):
+                for language, uid in (('csharp', 'csharp-user'), ('js', 'javascript-user')):
+                    invalid, proxy = await actor(f'{language}-{certificate}', language, uid, tokens[uid], certificate)
+                    rejection = await invalid.command('connect', reject=True)
+                    report.setdefault('certificateRejections', []).append({
+                        'client': language, 'certificate': certificate, 'category': rejection['category']})
+                    if proxy.client_bytes or invalid.count('connected') or (await invalid.command('state'))['connected']:
+                        raise AssertionError('Invalid certificate reached the WebSocket protocol')
+                    await invalid.close()
+            report['cases'].append('C# and Chromium reject untrusted CA and mismatched host certificates')
+            report['tls'] = {'normalCertificateValidation': True, 'untrustedCARejected': True,
+                             'wrongHostRejected': True, 'trustStore': 'ephemeral child-process CA/NSS'}
+        report['stage'] = 'initial messaging'
         csharp, cp = await actor("C#", "csharp", "csharp-user", tokens["csharp-user"])
         js, jp = await actor("JS", "js", "javascript-user", tokens["javascript-user"])
         await asyncio.gather(csharp.command("connect"), js.command("connect"))
@@ -333,6 +360,8 @@ async def scenarios(binary, directory, dll, env, report):
         report["actors"] = [{"name": client.name, "events": {kind: client.count(kind)
             for kind in ("connected", "disconnected", "reconnecting", "error", "message")}}
             for client in actors]
+        report['fixtureFailures'] = [event for client in actors for event in client.events
+                                     if event['kind'] == 'fixtureFailure']
         report["proxyAttempts"] = [proxy.attempts for proxy in proxies]
         for client in actors:
             await client.close()
@@ -345,6 +374,8 @@ async def scenarios(binary, directory, dll, env, report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate", action="store_true", help="Test checkout C# source instead of public NuGet")
+    parser.add_argument('--transport', choices=('ws', 'native', 'browser-wss'), default='ws')
+    parser.add_argument('--javascript-source', type=Path, help='Clean checkout at the reviewed JS source pin')
     args = parser.parse_args()
     binary = str(Path(os.environ["WUKONGIM_BINARY"]).resolve())
     metadata = subprocess.check_output(["go", "version", "-m", binary], text=True)
@@ -353,9 +384,11 @@ def main():
     report = {"status": "failed", "pins": PINS, "clientMode": "candidate" if args.candidate else "released",
               "harnessCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "harnessDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)),
-              "serverBinarySha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(), "cases": []}
+              "serverBinarySha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(), "cases": [],
+              "transport": args.transport}
     (ROOT / "artifacts").mkdir(exist_ok=True)
-    output = ROOT / f"artifacts/interop-{report['clientMode']}.json"
+    suffix = '' if args.transport == 'ws' else f'-{args.transport}'
+    output = ROOT / f"artifacts/interop-{report['clientMode']}{suffix}.json"
     try:
         with tempfile.TemporaryDirectory(prefix="wukong-csharp-js-") as directory:
             base = Path(directory)
@@ -367,6 +400,24 @@ def main():
             if installed_js["version"] != PINS["javascript"]:
                 raise AssertionError("Unexpected installed JS version")
             report["jsTransport"] = "ws/" + json.loads((ROOT / "tests/interop/js/node_modules/ws/package.json").read_text())["version"]
+            report['javascriptResolved'] = {'kind': 'npm', 'version': installed_js['version']}
+            if args.transport != 'ws' and not args.javascript_source:
+                raise AssertionError('Native/browser verification requires the pinned JS handshake repair source')
+            if args.javascript_source:
+                source = args.javascript_source.resolve()
+                revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip()
+                if revision != PINS['javascriptSource'] or subprocess.check_output(['git', 'status', '--porcelain'], cwd=source):
+                    raise AssertionError('JS source must be the reviewed clean commit')
+                subprocess.run(['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], cwd=source, check=True, timeout=120)
+                subprocess.run(['npm', 'run', 'build'], cwd=source, check=True, timeout=120)
+                env['INTEROP_JS_ENTRY'] = str(source / 'dist/cjs/index.js')
+                report['javascriptResolved'] = {'kind': 'source', 'commit': revision}
+            if args.transport != 'ws':
+                report['jsTransport'] = args.transport
+            report['nodeVersion'] = subprocess.check_output([os.environ.get('NODE', 'node'), '--version'], text=True).strip()
+            trust = Trust(base) if args.transport == 'browser-wss' else None
+            if trust:
+                env = trust.environment(env)
             project = ROOT / "tests/interop/csharp/Interop.csproj"
             build = [dotnet, "build", str(project), "-c", "Release", "-t:Rebuild",
                      f"-p:InteropCandidate={str(args.candidate).lower()}", "--configfile", str(ROOT / "tests/interop/NuGet.Config")]
@@ -380,7 +431,7 @@ def main():
             if library["type"] != ("project" if args.candidate else "package"):
                 raise AssertionError("Unexpected C# dependency source")
             dll = project.parent / "bin/Release/net8.0/Interop.dll"
-            asyncio.run(asyncio.wait_for(scenarios(binary, base, dll, env, report), 150))
+            asyncio.run(asyncio.wait_for(scenarios(binary, base, dll, env, report, args.transport, trust), 180))
             report["status"] = "passed"
     except Exception as error:
         report["failure"] = type(error).__name__ + ": " + str(error) if isinstance(error, AssertionError) else type(error).__name__

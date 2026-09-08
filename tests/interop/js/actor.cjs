@@ -1,8 +1,9 @@
 const readline = require('node:readline');
 // Pin the Node transport too: new Node versions otherwise select their native WebSocket.
 // This supplies a standard constructor without modifying SDK methods or lifecycle state.
-globalThis.WebSocket = require('ws');
-const { WKIM, WKIMEvent, WKIMChannelType, WKIMDeviceFlag } = require('easyjssdk');
+if (process.env.INTEROP_TRANSPORT !== 'native') globalThis.WebSocket = require('ws');
+else if (typeof globalThis.WebSocket !== 'function') throw new Error('Native WebSocket unavailable');
+const { WKIM, WKIMEvent, WKIMChannelType, WKIMDeviceFlag } = require(process.env.INTEROP_JS_ENTRY || 'easyjssdk');
 
 // Use only public SDK APIs; the proxy operates below WebSocket without rewriting frames.
 const emit = value => process.stdout.write(`${JSON.stringify(value)}\n`);
